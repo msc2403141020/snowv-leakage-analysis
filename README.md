@@ -8,10 +8,14 @@ This project investigates how faults in the AES S-box propagate into the keystre
 
 ## 📂 Repository Structure
 ├── scripts/
+
 │ └── snowv_bit_bias_analysis.m # MATLAB script for bit-level bias analysis (ε)
+
 │
 ├── snowv-correct-model/ # Fault-free SNOW-V C implementation
+
 ├── snowv_sbox_strong_fault_model.c # Fault-injected SNOW-V (persistent S-box fault)
+
 │
 ├── .gitignore # Ignores run_results/ and temporary files
 
