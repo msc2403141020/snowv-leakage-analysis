@@ -1,102 +1,73 @@
 # SNOW-V Leakage Analysis
 
-Implementation and experimental evaluation of **information-theoretic leakage** in the SNOW-V stream cipher under **persistent fault injection models**.
+> Information-theoretic leakage in SNOW-V under persistent S-box fault injection.
 
-This project investigates how faults in the AES S-box propagate into the keystream, leading to measurable **statistical biases** and potential leakage of internal state information.
+This project evaluates how AES S-box faults propagate into the SNOW-V keystream, producing measurable **statistical biases** that expose internal cipher state.
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
+
+```
 ├── scripts/
-
-│ └── snowv_bit_bias_analysis.m # MATLAB script for bit-level bias analysis (ε)
-
-├── snowv-correct-model/ # Fault-free SNOW-V C implementation
-├── snowv_sbox_strong_fault_model.c # Fault-injected SNOW-V (persistent S-box fault)
-│
-├── .gitignore # Ignores run_results/ and temporary files
+│   └── snowv_bit_bias_analysis.m   # MATLAB: bit-level bias analysis
+├── snowv-correct-model/            # Fault-free SNOW-V (C)
+├── snowv_sbox_strong_fault_model.c # Fault-injected SNOW-V (C)
+└── .gitignore
+```
 
 ---
 
-## 🚀 Analysis Workflow
+## How It Works
 
-### 1. Data Generation (C)
+### 1 — Keystream Generation (C)
 
-The C implementations generate hex-encoded keystreams using identical **Key–IV pairs**.
+Two keystreams are generated from identical Key–IV pairs:
 
-Two datasets are produced:
+| Stream | Description |
+|--------|-------------|
+| `Zc`   | Clean (fault-free) |
+| `Zf`   | Faulty (persistent S-box fault in R2/R3) |
 
-- **Clean Keystream**: \( Z_c \)
-- **Faulty Keystream**: \( Z_f \)
+Active fault cycles are logged to `fault_positions_key_n.txt`.
 
-**Fault Logging:**
-- Clock cycles where faulted registers (**R2/R3**) are active are recorded in:
-- fault_positions_key_n.txt
-- 
----
+### 2 — Differential
 
-### 2. Differential Computation
+```
+ΔZ = Zc XOR Zf
+```
 
-The keystream differential is computed as:
+Only samples where faults actively hit the output are retained.
 
-Delta Z = Zc XOR Zf
+### 3 — Bias Analysis (MATLAB)
 
-Only **fault-hit samples** are considered for further analysis.
+Run over **500+ independent trials**, each with 10⁶ keystream samples:
 
----
+```
+ε = |p − 0.5|
+```
 
-### 3. Statistical Bias Analysis (MATLAB)
-
-The MATLAB script (`scripts/snowv_bit_bias_analysis.m`) performs automated analysis over **500+ independent runs**.
-
-#### Key Steps:
-
-- **Filtering**  
-Extracts samples where fault propagation occurs.
-
-- **Probability Estimation**  
-Computes probability \( p \) of each bit being 1.
-
-- **Bias Measurement**  
-\[
-\epsilon = |p - 0.5|
-\]
+- `ε ≈ 0` → output is pseudorandom
+- `ε > 0` → statistical bias present
+- persistent `ε > 0` → **internal state leakage confirmed**
 
 ---
 
-### 🔍 Interpretation
+## Output Files
 
-- If \( \epsilon \approx 0 \): Output behaves randomly  
-- If \( \epsilon > 0 \): Indicates **statistical bias**  
-- Persistent non-zero bias ⇒ **information leakage from internal state**
+| File | Contents |
+|------|----------|
+| `bit_bias_avg.csv` | Aggregated bias matrix |
+| `bit_bias_avg_gnuplot.dat` | Heatmap-ready data |
 
----
-
-## 📊 Output
-
-The script generates:
-
-- `bit_bias_avg.csv` → Aggregated bias matrix  
-- `bit_bias_avg_gnuplot.dat` → Heatmap visualization input  
-
-These results are computed over:
-
-- **500+ runs**
-- Each with \( 10^6 \) keystream samples
-- Over **3.9M+ fault-hit observations**
+Computed over **3.9M+ fault-hit observations**.
 
 ---
 
-## ▶️ Usage
+## Usage
 
-### Prerequisites
-
-- MATLAB (tested on **R2022b or later**)
-- Generated keystream `.txt` files in the working directory
-
----
-
-### Execution
+**Requirements:** MATLAB R2022b+, generated `.txt` keystream files in working directory.
 
 ```matlab
 run('scripts/snowv_bit_bias_analysis.m')
+```
