@@ -9,15 +9,22 @@ num_bits  = 8;
 if ~exist("run_results", "dir"); mkdir("run_results"); end
 bias_sum      = zeros(num_bytes, num_bits);
 total_samples = 0;   % track total fault-hit rows across all runs
-
+valid_runs =0;
 %% ================= LOOP OVER RUNS =================
 for run = 1:num_runs
 
     fprintf("Processing run %d / %d ...\n", run, num_runs);
 
-    % -------- File names --------
+     % -------- File names --------
     file_clean  = sprintf("keystream_clean_key_%d.txt",    run);
     file_faulty = sprintf("keystream_faulty_key_%d.txt",   run);
+    file_fault  = sprintf("fault_positions_key_%d.txt",  run);
+
+     % -------- File existence check --------
+    if ~isfile(file_clean) || ~isfile(file_faulty) || ~isfile(file_fault)
+        warning("Run %d: missing files — skipping.", run);
+        continue;
+    end
 
     % -------- Load hex keystreams --------
     Zc = read_hex_file(file_clean);
@@ -33,32 +40,29 @@ for run = 1:num_runs
     DeltaZ = bitxor(Zc, Zf);
 
     % -------- Load fault positions and filter --------
-file_fault = sprintf("fault_positions_key_%d.txt", run);
+fault_raw = readtable(file_fault, 'ReadVariableNames', false);
+    t_hit = fault_raw{:,1};
+    t_hit = t_hit(t_hit >= 1 & t_hit <= size(DeltaZ,1));
 
-% Read as text — column 1 = row index, column 2 = R2/R3 label
-fault_raw  = readtable(file_fault, 'ReadVariableNames', false);
-t_hit      = fault_raw{:,1};          % extract row indices (numeric column 1)
-
-% Optional: filter by register if needed
-% t_hit_R2 = fault_raw{strcmp(fault_raw{:,2}, 'R2'), 1};
-% t_hit_R3 = fault_raw{strcmp(fault_raw{:,2}, 'R3'), 1};
-
-% Clamp to valid range
-t_hit  = t_hit(t_hit >= 1 & t_hit <= size(DeltaZ,1));
-
-% Keep only fault-hit rows
-DeltaZ = DeltaZ(t_hit, :);
-
-fprintf("  Run %d | Fault-hit rows: %d / %d\n", run, size(DeltaZ,1), size(Zc,1));
+    if isempty(t_hit)
+        warning("Run %d: no valid fault rows — skipping.", run);
+        continue;
+    end
+    
+    t_start = min(t_hit);
+    DeltaZ = DeltaZ(t_start:end, :);
     n_fault = size(DeltaZ, 1);
-    fprintf("  Run %d | Fault-hit rows used: %d / %d\n", ...
+
+fprintf("  Run %d | Fault-hit rows used: %d / %d\n", ...
             run, n_fault, size(Zc,1));
 
     if n_fault == 0
         warning("Run %d: no valid fault rows — skipping.", run);
         continue;
     end
+
     total_samples = total_samples + n_fault;
+    valid_runs    = valid_runs + 1; 
     % -------- Compute bias for this run --------
     % pseudocode:
     %   p_{b,k} = (1/N) * sum_{t=1}^{N} bit_k( DeltaZ^(b)_t )
@@ -66,10 +70,10 @@ fprintf("  Run %d | Fault-hit rows: %d / %d\n", run, size(DeltaZ,1), size(Zc,1))
     bias_run = zeros(num_bytes, num_bits);
     for b = 1:num_bytes
         byte_vals = DeltaZ(:, b);
-        for k = 0:num_bits-1
-            bits             = bitget(byte_vals, k+1);
+        for k = 1:num_bits
+            bits             = double(bitget(byte_vals, k));
             p                = mean(bits);
-            bias_run(b, k+1) = abs(p - 0.5);
+            bias_run(b, k)   = abs(p - 0.5);
         end
     end
     bias_sum = bias_sum + bias_run;
@@ -96,8 +100,13 @@ fprintf("  Run %d | Fault-hit rows: %d / %d\n", run, size(DeltaZ,1), size(Zc,1))
 end  % end run loop
 
 %% ================= AVERAGING =================
-bias_avg = bias_sum / num_runs;
-fprintf("\nAveraging completed over %d runs.\n", num_runs);
+if valid_runs == 0
+    error("No valid runs found. Check file paths.");
+end
+bias_avg = bias_sum / valid_runs;
+
+fprintf("\nAveraging completed over %d valid runs (of %d total).\n", ...
+        valid_runs, num_runs);
 fprintf("Total fault-hit samples across all runs: %d\n\n", total_samples);
 
 %% ================= SAVE AVERAGED RESULTS =================
@@ -153,30 +162,15 @@ fprintf("=== Done ===\n");
 %  Returns [N x 16] uint8 matrix
 %% ===================================================================
 function data = read_hex_file(filename)
-
     fid = fopen(filename, 'r');
     if fid == -1
         error("Cannot open file: %s", filename);
     end
-
-    fmt = repmat('%s ', 1, 16);
-    raw = textscan(fid, fmt, ...
-                   'CommentStyle',        '#', ...
-                   'MultipleDelimsAsOne', true);
+    raw = fscanf(fid, '%2x');
     fclose(fid);
-
-    if isempty(raw{1})
-        error("No valid data found in file: %s", filename);
+    if mod(length(raw), 16) ~= 0
+        error("File format error in '%s': got %d bytes, not divisible by 16", ...
+              filename, length(raw));
     end
-
-    % Safe minimum row count across all 16 columns
-    n_rows   = min(cellfun(@numel, raw));
-
-    % Clip all columns to same length then build N×16 cell of hex strings
-    hex_cell = cellfun(@(col) col(1:n_rows), raw, 'UniformOutput', false);
-    hex_mat  = [hex_cell{:}];   % N×16 cell array
-
-    % Vectorised hex→uint8 conversion
-    data = uint8(reshape(hex2dec(hex_mat(:)), n_rows, 16));
-
+    data = uint8(reshape(raw, 16, []).');
 end
