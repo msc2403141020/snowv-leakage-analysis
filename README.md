@@ -11,6 +11,7 @@ This project evaluates how AES S-box faults propagate into the SNOW-V keystream,
 ```
 ├── scripts/
 │   └── snowv_bit_bias_analysis.m   # MATLAB: bit-level bias analysis
+│   └── snowv_byte_bias_analysis.m   # MATLAB: byte-level bias analysis
 ├── snowv-correct-model/            # Fault-free SNOW-V (C)
 ├── snowv_sbox_strong_fault_model.c # Fault-injected SNOW-V (C)
 └── .gitignore
@@ -70,4 +71,5 @@ Computed over **3.9M+ fault-hit observations**.
 
 ```matlab
 run('scripts/snowv_bit_bias_analysis.m')
+run('scripts/snowv_byte_bias_analysis.m')
 ```
