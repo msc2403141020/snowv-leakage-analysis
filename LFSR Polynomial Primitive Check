@@ -1,0 +1,179 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <ctype.h>
+
+#define N 16
+#define MAX_PERIOD 65535UL  // 2^16 – 1
+
+
+/* -----------------------------------------------------------
+   Print state in Binary (MSB→LSB), Decimal, and Hex
+------------------------------------------------------------- */
+void print_state_info(uint16_t x) {
+    printf("| ");
+
+    for (int i = N - 1; i >= 0; i--) {
+        putchar((x >> i) & 1 ? '1' : '0');
+        if (i && (i % 4 == 0)) putchar(' ');  // group by 4 bits
+    }
+
+    printf(" | %6u | 0x%04X\n", x, x);
+}
+
+
+/* -----------------------------------------------------------
+   Produce a suggested non-zero seed based on tapmask
+------------------------------------------------------------- */
+uint16_t suggest_seed(uint16_t tapmask) {
+    uint16_t s = tapmask;
+
+    s ^= (s << 3);
+    s ^= (s >> 5);
+    s ^= 0xACE1;
+    s &= 0xFFFF;
+
+    if (s == 0) s = 1;
+    return s;
+}
+
+
+/* -----------------------------------------------------------
+   XOR of tapped bits → feedback bit
+------------------------------------------------------------- */
+uint16_t compute_feedback(uint16_t state, const int taps[], int k) {
+    uint16_t fb = 0;
+
+    for (int i = 0; i < k; i++) {
+        fb ^= (state >> taps[i]) & 1u;
+    }
+    return fb & 1u;
+}
+
+
+/* -----------------------------------------------------------
+   Right shift + insert feedback bit at MSB
+------------------------------------------------------------- */
+uint16_t shift_lfsr(uint16_t s, uint16_t fb) {
+    s >>= 1;
+    s |= (fb << (N - 1));
+    return s;
+}
+
+
+/* -----------------------------------------------------------
+   MAIN PROGRAM
+------------------------------------------------------------- */
+int main() {
+
+    int k;
+    int taps[N];
+    uint16_t tapmask = 0;
+    uint16_t state, start;
+
+    printf("=========== 16-bit Fibonacci LFSR Simulator ===========\n");
+    printf("LFSR size fixed: N = %d bits\n\n", N);
+
+    /* ----------------- INPUT TAPS -------------------- */
+    printf("Enter number of taps (excluding x^16 term): ");
+    if (scanf("%d", &k) != 1 || k < 1 || k >= N) {
+        printf("Invalid number of taps.\n");
+        return 1;
+    }
+
+    printf("Enter %d tap positions (0–15), e.g., 15 2 0:\n", k);
+    for (int i = 0; i < k; i++) {
+        int p;
+        if (scanf("%d", &p) != 1 || p < 0 || p >= N) {
+            printf("Invalid tap.\n");
+            return 1;
+        }
+        taps[i] = p;
+        tapmask |= (1u << p);
+    }
+
+    // flush buffer
+    while (getchar() != '\n');
+
+
+    /* ----------------- SEED SELECTION -------------------- */
+    uint16_t suggested = suggest_seed(tapmask);
+
+    printf("\nSuggested seed:\n");
+    print_state_info(suggested);
+
+    printf("\nUse suggested seed? (y/n): ");
+    char c;
+    do { c = getchar(); } while (isspace(c));
+
+    while (getchar() != '\n');  // flush
+
+    if (c == 'y' || c == 'Y') {
+        state = suggested;
+    } else {
+        char bin[20];
+
+        printf("Enter custom 16-bit binary seed (no spaces): ");
+        if (scanf("%16s", bin) != 1) {
+            printf("Invalid input.\n");
+            return 1;
+        }
+
+        if (strlen(bin) != 16) {
+            printf("Seed must be exactly 16 bits.\n");
+            return 1;
+        }
+
+        state = 0;
+        for (int i = 0; i < 16; i++) {
+            if (bin[i] == '1') state = (state << 1) | 1u;
+            else if (bin[i] == '0') state <<= 1;
+            else {
+                printf("Invalid character in binary seed.\n");
+                return 1;
+            }
+        }
+
+        if (state == 0) {
+            printf("Seed cannot be zero.\n");
+            return 1;
+        }
+    }
+
+    start = state;
+
+
+    /* ----------------- SIMULATION -------------------- */
+    printf("\n---------------- LFSR Output Stream ----------------\n");
+    printf("Step | State (MSB→LSB)       | Decimal | Hex\n");
+    printf("-----|-------------------------|---------|------\n");
+
+    unsigned long long steps = 0;
+
+    do {
+        printf("%4llu ", steps);
+        print_state_info(state);
+
+        uint16_t fb = compute_feedback(state, taps, k);
+        state = shift_lfsr(state, fb);
+
+        steps++;
+
+    } while (state != start);
+
+
+    /* ----------------- RESULT -------------------- */
+    printf("\n=================== RESULT ===================\n");
+    printf("Final State: ");
+    print_state_info(state);
+
+    printf("Period = %llu\n", steps);
+    printf("Maximum possible = %lu\n", MAX_PERIOD);
+
+    if (steps == MAX_PERIOD)
+        printf("✔ The polynomial is PRIMITIVE (maximum-length LFSR)\n");
+    else
+        printf("✘ Not primitive (cycle shorter than maximum)\n");
+
+    return 0;
+}
