@@ -1,21 +1,25 @@
-# SNOW-V Leakage Analysis
+# SNOW-V Persistent Fault Analysis (PFA)
 
 > Information-theoretic leakage in SNOW-V under persistent S-box fault injection.
 
-This project evaluates how AES S-box faults propagate into the SNOW-V keystream, producing measurable **statistical biases** that expose internal cipher state.
+This repository contains the implementation and statistical analysis for identifying leakage in the **SNOW-V stream cipher** under hardware-level persistent faults. This research focuses on the bias in keystream differentials and quantifies information leakage using Mutual Information (MI).
 
+## 🎓 Research Context
+- **Institution:** Indian Institute of Technology (IIT) Indore
+- **Department:** Department of Mathematics
+- **Focus:** Hardware Security, Cryptanalysis, SNOW-V Stream Cipher
 ---
 
-## Repository Structure
+## 📂 Repository Structure
 
-```
+```text
 ├── scripts/
-│   └── snowv_bit_bias_analysis.m   # MATLAB: bit-level bias analysis
-│   └── snowv_byte_bias_analysis.m   # MATLAB: byte-level bias analysis
-├── snowv-correct-model/            # Fault-free SNOW-V (C)
-├── snowv_sbox_strong_fault_model.c # Fault-injected SNOW-V (C)
-└── .gitignore
-```
+│   ├── snowv_bit_bias_analysis.m   # Bit-level bias analysis (ε = |p - 0.5|)
+│   ├── snowv_byte_bias_analysis.m  # Byte-level distribution analysis
+│   └── snow_v_mi_analysis.m        # Per-byte Mutual Information (MI) calculation
+├── snowv-correct-model/            # Reference C implementation of fault-free SNOW-V
+├── snowv_sbox_strong_fault_model.c  # C implementation with persistent fault injection
+└── .gitignore                      # Excludes raw .txt and .mat data files
 
 ---
 
@@ -27,23 +31,22 @@ Two keystreams are generated from identical Key–IV pairs:
 
 | Stream | Description |
 |--------|-------------|
-| `Zc`   | Clean (fault-free) |
-| `Zf`   | Faulty (persistent S-box fault in R2/R3) |
+| `Zc`   | **Clean:** (fault-free) |
+| `Zf`   | **Faulty:** Persistent S-box fault injected in R2/R3 |
 
-Active fault cycles are logged to `fault_positions_key_n.txt`.
+The specific cycles where the persistent fault is active are logged to `fault_positions_key_n.txt` to ensure precise alignment during analysis.
 
-### 2 — Differential
-
-```
+### 2 — Differential Analysis
+We focus exclusively on the XOR differential between the two streams:
 ΔZ = Zc XOR Zf
-```
-
-Only samples where faults actively hit the output are retained.
+The analysis pipeline automatically discards transient phases and only retains samples where the **persistent fault** actively influences the output.
 
 ### 3 — Bias Analysis (MATLAB)
 
-Run over **500+ independent trials**, each with 10⁶ keystream samples:
+The scripts process **500+ independent trials**, each containing $10^6$ keystream samples, covering over **3.9M+ total fault-hit observations**.
 
+#### A. Bit-Level Bias
+We calculate the bias $\epsilon$ for every bit position:
 ```
 ε = |p − 0.5|
 ```
@@ -53,23 +56,39 @@ Run over **500+ independent trials**, each with 10⁶ keystream samples:
 - persistent `ε > 0` → **internal state leakage confirmed**
 
 ---
+#### B. Byte-Level & MI Analysis
+* **Byte Bias:** Measures the deviation of 8-bit blocks from the uniform distribution ($1/256$).
+* **Mutual Information:** Quantifies the exact bits of entropy leaked from the $T_1$ register into the $\Delta Z$ differential.
 
-## Output Files
+---
+
+## 📂 Output Files
 
 | File | Contents |
 |------|----------|
 | `bit_bias_avg.csv` | Aggregated bias matrix |
-| `bit_bias_avg_gnuplot.dat` | Heatmap-ready data |
+| `byte_bias.csv` | data |
+| `MI_STATISTICS.txt` | Final report on information leakage (Mean/Std Dev). |
+
 
 Computed over **3.9M+ fault-hit observations**.
 
 ---
 
-## Usage
+## 🚀 Usage
 
-**Requirements:** MATLAB R2022b+, generated `.txt` keystream files in working directory.
+### Requirements
+* **Data:** Generated `.txt` keystream files (clean, faulty, and fault-position logs) in the working directory.
+* **Software:** MATLAB R2022b or later.
 
+### Execution
+Run the analysis scripts in sequence:
 ```matlab
+% 1. Analyze bit-level biases
 run('scripts/snowv_bit_bias_analysis.m')
+
+% 2. Analyze byte-level distribution
 run('scripts/snowv_byte_bias_analysis.m')
-```
+
+% 3. Calculate Mutual Information leakage
+run('scripts/snow_v_mi_analysis.m')
