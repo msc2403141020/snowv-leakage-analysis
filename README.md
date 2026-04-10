@@ -97,7 +97,7 @@ We calculate the bias $\epsilon$ for every bit position:
 
 ### Requirements
 * **Data:** Generated `.txt` keystream files (clean, faulty, and fault-position logs) in the working directory.
-* **Software:** MATLAB R2022b or later.
+* **Software:** MATLAB R2024b or later.
 
 ### Execution
 ```
