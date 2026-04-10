@@ -25,9 +25,9 @@ This repository provides the implementation and statistical framework for identi
 ```
 
 
-```
-## ⚙️ How It Works
 
+## ⚙️ How It Works
+```
 ### 1 — Keystream Generation (C)
 
 The analysis begins by generating two keystreams using identical **Key–IV pairs** to isolate the fault impact.
@@ -39,17 +39,19 @@ The analysis begins by generating two keystreams using identical **Key–IV pair
 
 The specific cycles where the persistent fault is active are logged to `fault_positions_key_n.txt` to ensure precise alignment during analysis.
 ---
-```
 
 ### 2 — Differential Analysis
 We focus exclusively on the XOR differential between the two streams:
+
 ΔZ = Zc XOR Zf
+
 The analysis pipeline automatically discards transient phases and only retains samples where the **persistent fault** actively influences the output.
 ---
-
 ```
-### 3 — Bias Analysis (MATLAB)
 
+
+### 3 — Bias Analysis (MATLAB)
+```
 The analysis is performed over:
 
 - 500+ independent trials  
@@ -69,16 +71,18 @@ We calculate the bias $\epsilon$ for every bit position:
 - `ε > 0` → statistical bias present
 - persistent `ε > 0` → **internal state leakage confirmed**
 
-```
+
 #### B. Byte-Level & MI Analysis
 * **Byte Bias:** Measures the deviation of 8-bit blocks from the uniform distribution $$
   \frac{1}{256}
   $$.
 * **Mutual Information:** Quantifies the exact bits of entropy leaked from the $T_1$ register into the $\Delta Z$ differential.
-```
 ---
-```
+
+
+
 ## 📂 Output Files
+```
 
 | File | Contents |
 |------|----------|
@@ -88,14 +92,15 @@ We calculate the bias $\epsilon$ for every bit position:
 ```
 
 ---
-```
+
 ## 🚀 Usage
 
 ### Requirements
 * **Data:** Generated `.txt` keystream files (clean, faulty, and fault-position logs) in the working directory.
 * **Software:** MATLAB R2022b or later.
-```
+
 ### Execution
+```
 Run the analysis scripts in sequence:
 ```matlab
 % 1. Analyze bit-level biases
