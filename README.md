@@ -10,7 +10,7 @@ This repository contains the implementation and statistical analysis for identif
 - **Focus:** Hardware Security, Cryptanalysis, SNOW-V Stream Cipher
 ---
 
-# 📂 Repository Structure
+## Repository Structure
 
 ```text
 ├── scripts/
@@ -62,7 +62,7 @@ We calculate the bias $\epsilon$ for every bit position:
 
 ---
 
-# 📂 Output Files
+## Output Files
 
 | File | Contents |
 |------|----------|
