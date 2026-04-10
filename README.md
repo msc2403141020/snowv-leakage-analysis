@@ -73,9 +73,9 @@ We calculate the bias $\epsilon$ for every bit position:
 
 
 #### B. Byte-Level & MI Analysis
-* **Byte Bias:** Measures the deviation of 8-bit blocks from the uniform distribution $$
+* **Byte Bias:** Measures the deviation of 8-bit blocks from the uniform distribution $
   \frac{1}{256}
-  $$.
+  $.
 * **Mutual Information:** Quantifies the exact bits of entropy leaked from the $T_1$ register into the $\Delta Z$ differential.
 ---
 
